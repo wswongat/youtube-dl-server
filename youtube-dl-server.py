@@ -4,12 +4,18 @@ import os
 import subprocess
 from queue import Queue
 from flask import Flask, escape, request, send_from_directory, render_template
+from flask_basicauth import BasicAuth
 from threading import Thread
 import youtube_dl
 from pathlib import Path
 from collections import ChainMap
 
 app = Flask(__name__,template_folder='.')
+app.config['BASIC_AUTH_USERNAME'] = 'user'
+app.config['BASIC_AUTH_PASSWORD'] = 'user'
+app.config['BASIC_AUTH_FORCE'] = True
+basic_auth = BasicAuth(app)
+
 mesg = dict()
 emesg = []
 
@@ -27,7 +33,6 @@ app_defaults = {
 
 @app.route('/youtube-dl')
 def dl_queue_list():
-    print('test')
     return render_template('index.html')
 
 @app.route('/youtube-dl/static/<path:path>')
