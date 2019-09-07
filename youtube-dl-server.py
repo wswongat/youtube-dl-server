@@ -3,14 +3,15 @@ import json
 import os
 import subprocess
 from queue import Queue
-from bottle import route, run, Bottle, request, static_file
+from flask import Flask, escape, request, send_from_directory, render_template
 from threading import Thread
 import youtube_dl
 from pathlib import Path
 from collections import ChainMap
 
-app = Bottle()
-
+app = Flask(__name__,template_folder='.')
+mesg = dict()
+emesg = []
 
 app_defaults = {
     'YDL_FORMAT': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
@@ -26,24 +27,22 @@ app_defaults = {
 
 @app.route('/youtube-dl')
 def dl_queue_list():
-    return static_file('index.html', root='./')
+    print('test')
+    return render_template('index.html')
 
+@app.route('/youtube-dl/static/<path:path>')
+def send_js(path):
+    return send_from_directory('static', path)
 
-@app.route('/youtube-dl/static/:filename#.*#')
-def server_static(filename):
-    return static_file(filename, root='./static')
-
-
-@app.route('/youtube-dl/q', method='GET')
+@app.route('/youtube-dl/q', methods=['GET'])
 def q_size():
     return {"success": True, "size": json.dumps(list(dl_q.queue))}
 
-
-@app.route('/youtube-dl/q', method='POST')
+@app.route('/youtube-dl/q', methods=['POST'])
 def q_put():
-    url = request.forms.get("url")
+    url = request.values["url"]
     options = {
-        'format': request.forms.get("format")
+        'format': request.values["format"]
     }
 
     if not url:
@@ -52,6 +51,21 @@ def q_put():
     dl_q.put((url, options))
     print("Added url " + url + " to the download queue")
     return {"success": True, "url": url, "options": options}
+
+@app.route('/youtube-dl/status')
+def status():
+    global mesg, emesg
+    return {"success": True, "status": 'None' if mesg == [] else mesg \
+        ,"Error": 'None' if not(len(emesg)) else emesg}
+
+@app.route('/youtube-dl/clear')
+def statusclear():
+    global mesg, emesg
+    del mesg
+    del emesg
+    mesg = dict()
+    emesg = []
+    return {"success": True}
 
 
 def dl_worker():
@@ -100,11 +114,16 @@ def get_ydl_options(request_options):
         'download_archive': ydl_vars['YDL_ARCHIVE_FILE']
     }
 
-
 def download(url, request_options):
+    global mesg,emesg
     with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
-        ydl.download([url])
-
+        try:
+            mesg[url]=('Downloading')
+            ydl.download([url])
+            mesg[url]=('Done')
+        except:
+            mesg.pop(url,None)
+            emesg.append(url)
 
 dl_q = Queue()
 done = False
@@ -115,6 +134,7 @@ print("Started download thread")
 
 app_vars = ChainMap(os.environ, app_defaults)
 
-app.run(host=app_vars['YDL_SERVER_HOST'], port=app_vars['YDL_SERVER_PORT'], debug=True)
+#app.config["DEBUG"] = True
+app.run(host=app_vars['YDL_SERVER_HOST'], port=app_vars['YDL_SERVER_PORT'])
 done = True
 dl_thread.join()
