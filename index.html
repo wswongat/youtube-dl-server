@@ -111,7 +111,9 @@
       $("#downloadTask").submit(function(event){
         $.post($(this).attr('action'), $(this).serialize(), function(response){
           if(!response.success){
-            alert("Submit error!")
+            alert("Submit error!");
+          }else{
+            alert("Success");
           }
         });
         event.preventDefault();
