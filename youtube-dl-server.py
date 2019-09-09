@@ -134,7 +134,7 @@ def get_ydl_options(request_options,url = None):
 
 def download(url, request_options):
     global mesg,emesg
-    with youtube_dl.YoutubeDL(get_ydl_options(request_options,url)) as ydl:
+    with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
         try:
             mesg[url]=('Downloading')
             ydl.download([url])
