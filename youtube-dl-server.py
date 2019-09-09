@@ -87,15 +87,7 @@ def get_ydl_options(request_options,url = None):
         'YDL_RECODE_VIDEO_FORMAT': None,
     }
 
-    ## for user can not obtian the title
-    if url != None:
-        import requests
-        titleDATA = requests.get(url).text
-        import re
-        regexFilter = re.compile('<title>(.*?)</title>', re.IGNORECASE|re.DOTALL)
-        title = regexFilter.search(titleDATA).group(1)[:24]
-        backupApp_defaults = app_defaults
-        app_defaults['YDL_OUTPUT_TEMPLATE'].replace("%(title)s",title)
+
     requested_format = request_options.get('format', 'bestvideo')
 
     if requested_format in ['aac', 'flac', 'mp3', 'm4a', 'opus', 'vorbis', 'wav']:
@@ -105,9 +97,18 @@ def get_ydl_options(request_options,url = None):
     elif requested_format in ['mp4', 'flv', 'webm', 'ogg', 'mkv', 'avi']:
         request_vars['YDL_RECODE_VIDEO_FORMAT'] = requested_format
 
-    ydl_vars = ChainMap(request_vars, os.environ, app_defaults)
-
-    app_defaults = backupApp_defaults
+    ## for user can not obtian the title
+    if url != None:
+        import requests,re,copy
+        titleDATA = requests.get(url).text
+        regexFilter = re.compile('<title>(.*?)</title>', re.IGNORECASE|re.DOTALL)
+        title = regexFilter.search(titleDATA).group(1)[:32]
+        mod_app_defaults = copy.deepcopy(app_defaults)
+        mod_app_defaults['YDL_OUTPUT_TEMPLATE'] = mod_app_defaults['YDL_OUTPUT_TEMPLATE'].replace("%(title)s",title)
+        print(mod_app_defaults['YDL_OUTPUT_TEMPLATE'])
+        ydl_vars = ChainMap(request_vars, os.environ, mod_app_defaults)
+    else:
+        ydl_vars = ChainMap(request_vars, os.environ, app_defaults)
 
     postprocessors = []
 
@@ -133,7 +134,7 @@ def get_ydl_options(request_options,url = None):
 
 def download(url, request_options):
     global mesg,emesg
-    with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
+    with youtube_dl.YoutubeDL(get_ydl_options(request_options,url)) as ydl:
         try:
             mesg[url]=('Downloading')
             ydl.download([url])
